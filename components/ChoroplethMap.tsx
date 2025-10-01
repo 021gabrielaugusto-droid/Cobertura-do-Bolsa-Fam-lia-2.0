@@ -71,7 +71,7 @@ export const ChoroplethMap: React.FC<ChoroplethMapProps> = ({
     };
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-        .scaleExtent([1, 8])
+        .scaleExtent([0.5, 8])
         .on('zoom', zoomed);
 
     zoomRef.current = zoom;
