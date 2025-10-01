@@ -178,8 +178,35 @@ export const ChoroplethMap: React.FC<ChoroplethMapProps> = ({
     if (!svgNode) return;
     
     const currentTransform = d3.zoomTransform(svgNode);
+    const allPaths = pathsGroup.selectAll<SVGPathElement, GeoJsonFeature>('path');
+    
+    // Bring hovered/selected to front
+    allPaths.each(function(d) {
+        const isHovered = d.properties?.id === hoveredId;
+        const ibge6 = d.properties?.id?.substring(0, 6) ?? null;
+        const isSelected = ibge6 === selectedIbgeCode;
 
-    pathsGroup.selectAll<SVGPathElement, GeoJsonFeature>('path')
+        if (isSelected || isHovered) {
+          d3.select(this).raise();
+        }
+    });
+
+    // Apply styles with transitions
+    allPaths
+      .transition()
+      .duration(150)
+      .attr('transform', function(d) {
+        const ibge6 = d.properties?.id?.substring(0, 6) ?? null;
+        if (ibge6 === selectedIbgeCode) {
+            // Scale the translation effect by the current zoom level
+            return `translate(-${5 / currentTransform.k}, -${5 / currentTransform.k})`;
+        }
+        return null;
+      })
+      .attr('filter', function(d) {
+        const ibge6 = d.properties?.id?.substring(0, 6) ?? null;
+        return ibge6 === selectedIbgeCode ? 'url(#drop-shadow-effect)' : null;
+      })
       .attr('stroke', (d) => {
         const ibge6 = d.properties?.id ? d.properties.id.substring(0, 6) : null;
         if (ibge6 === selectedIbgeCode) return '#8B5CF6'; // purple-500
@@ -196,22 +223,15 @@ export const ChoroplethMap: React.FC<ChoroplethMapProps> = ({
         const isInRegion = selectedRegionMunCodes && ibge6 && selectedRegionMunCodes.has(ibge6);
 
         let strokeWidth = 0.5;
-        if (isSelected || isHovered) {
-          strokeWidth = 1.5;
+        if (isSelected) {
+            strokeWidth = 2; // Selected is most prominent
+        } else if (isHovered) {
+            strokeWidth = 1.5;
         } else if (isInRegion) {
-          strokeWidth = 1;
+            strokeWidth = 1;
         }
 
         return strokeWidth / currentTransform.k; // Scale stroke width based on zoom
-      })
-      .each(function (d) {
-        const isHovered = d.properties?.id === hoveredId;
-        const ibge6 = d.properties?.id ? d.properties.id.substring(0, 6) : null;
-        const isSelected = ibge6 === selectedIbgeCode;
-
-        if (isSelected || isHovered) {
-            this.parentNode?.appendChild(this); // Bring selected/hovered to front within its group
-        }
       });
   }, [hoveredId, selectedIbgeCode, selectedRegionMunCodes]);
   
@@ -231,6 +251,19 @@ export const ChoroplethMap: React.FC<ChoroplethMapProps> = ({
   return (
     <div ref={containerRef} className="relative w-full h-auto rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
       <svg ref={svgRef} width={dimensions.width} height={dimensions.height}>
+         <defs>
+            <filter id="drop-shadow-effect" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
+                <feOffset in="blur" dx="5" dy="5" result="offsetBlur" />
+                <feComponentTransfer in="offsetBlur" result="shadowMarkup">
+                    <feFuncA type="linear" slope="0.65" />
+                </feComponentTransfer>
+                <feMerge>
+                    <feMergeNode in="shadowMarkup" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+         </defs>
          <g ref={zoomableGroupRef}>
             <g ref={pathsGroupRef} />
             <g ref={labelsGroupRef} />
