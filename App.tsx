@@ -1,4 +1,6 @@
-import React, { useState, useMemo, useMemo as useMemoAlias } from 'react';
+
+import React, { useState, useMemo, useMemo as useMemoAlias, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { ChoroplethMap } from './components/ChoroplethMap';
 import { Legend } from './components/Legend';
 import { Tooltip } from './components/Tooltip';
@@ -19,6 +21,8 @@ const App: React.FC = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const parsedStatsMap = useMemoAlias(() => {
     return parseData(rawData);
@@ -205,19 +209,54 @@ const App: React.FC = () => {
   const handleMouseLeave = () => {
     setTooltipData(null);
   };
+  
+  const handleSaveImage = async () => {
+    if (!printRef.current) return;
+    setIsSaving(true);
+    try {
+      const canvas = await html2canvas(printRef.current, {
+        useCORS: true,
+        scale: 2.5, // Higher scale for better resolution
+        backgroundColor: '#f1f5f9', // Match body bg
+      });
+      const link = document.createElement('a');
+      link.download = 'dashboard-cobertura-bolsa-familia.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Erro ao salvar imagem:', error);
+      alert('Ocorreu um erro ao tentar salvar a imagem.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const numberFormatter = new Intl.NumberFormat('pt-BR');
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-screen-2xl bg-white rounded-xl shadow-2xl p-6 lg:p-8">
+      <div ref={printRef} className="w-full max-w-screen-2xl bg-white rounded-xl shadow-2xl p-6 lg:p-8">
         <header className="border-b border-slate-200 pb-4">
-          <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">
-            Cobertura do Bolsa Família
-          </h1>
-          <p className="text-slate-500 mt-1 text-lg">
-            Análise da cobertura de saúde no Rio de Janeiro - 1º Semestre de 2025
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">
+                Cobertura do Bolsa Família
+              </h1>
+              <p className="text-slate-500 mt-1 text-lg">
+                Análise da cobertura de saúde no Rio de Janeiro - 1º Semestre de 2025
+              </p>
+            </div>
+            <button
+                onClick={handleSaveImage}
+                disabled={isSaving}
+                className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center space-x-2 shrink-0"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>{isSaving ? 'Salvando...' : 'Salvar Imagem'}</span>
+            </button>
+          </div>
         </header>
 
         <main className="mt-6 lg:grid lg:grid-cols-12 lg:gap-8 lg:h-[75vh]">
