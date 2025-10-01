@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useMemo as useMemoAlias, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { ChoroplethMap } from './components/ChoroplethMap';
@@ -22,7 +21,9 @@ const App: React.FC = () => {
   const [showLabels, setShowLabels] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingMap, setIsSavingMap] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const mapPrintRef = useRef<HTMLDivElement>(null);
 
   const parsedStatsMap = useMemoAlias(() => {
     return parseData(rawData);
@@ -230,6 +231,27 @@ const App: React.FC = () => {
       setIsSaving(false);
     }
   };
+  
+  const handleSaveMap = async () => {
+    if (!mapPrintRef.current) return;
+    setIsSavingMap(true);
+    try {
+      const canvas = await html2canvas(mapPrintRef.current, {
+        useCORS: true,
+        scale: 2.5,
+        backgroundColor: '#f8fafc', // Match map bg (slate-50)
+      });
+      const link = document.createElement('a');
+      link.download = 'mapa-cobertura-bolsa-familia.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Erro ao salvar mapa:', error);
+      alert('Ocorreu um erro ao tentar salvar o mapa.');
+    } finally {
+      setIsSavingMap(false);
+    }
+  };
 
   const numberFormatter = new Intl.NumberFormat('pt-BR');
 
@@ -237,7 +259,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div ref={printRef} className="w-full max-w-screen-2xl bg-white rounded-xl shadow-2xl p-6 lg:p-8">
         <header className="border-b border-slate-200 pb-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold text-slate-800">
                 Cobertura do Bolsa Família
@@ -246,20 +268,33 @@ const App: React.FC = () => {
                 Análise da cobertura de saúde no Rio de Janeiro - 1º Semestre de 2025
               </p>
             </div>
-            <button
-                onClick={handleSaveImage}
-                disabled={isSaving}
-                className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center space-x-2 shrink-0"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span>{isSaving ? 'Salvando...' : 'Salvar Imagem'}</span>
-            </button>
+            <div className="flex flex-col space-y-2">
+                <button
+                    onClick={handleSaveImage}
+                    disabled={isSaving || isSavingMap}
+                    className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center space-x-2 shrink-0"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>{isSaving ? 'Salvando...' : 'Salvar Imagem'}</span>
+                </button>
+                 <button
+                    onClick={handleSaveMap}
+                    disabled={isSaving || isSavingMap}
+                    className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center space-x-2 shrink-0"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>{isSavingMap ? 'Salvando...' : 'Salvar Mapa'}</span>
+                </button>
+            </div>
           </div>
         </header>
 
-        <main className="mt-6 lg:grid lg:grid-cols-12 lg:gap-8 lg:h-[75vh]">
+        <main className="mt-6 lg:grid lg:grid-cols-12 lg:gap-8 lg:h-[72vh]">
           <aside className="lg:col-span-3 flex flex-col space-y-6">
              <ControlsPanel
                 regions={regions}
@@ -273,7 +308,7 @@ const App: React.FC = () => {
              />
           </aside>
 
-          <div className="relative lg:col-span-6 mt-8 lg:mt-0 h-full">
+          <div ref={mapPrintRef} className="relative lg:col-span-6 mt-8 lg:mt-0 h-full">
             {loading && <div className="absolute inset-0 flex items-center justify-center text-slate-500">Carregando dados do mapa...</div>}
             {error && <div className="absolute inset-0 flex items-center justify-center text-red-500">Erro ao carregar dados: {error}</div>}
             {geoDataForMap && municipalityData.size > 0 && (
